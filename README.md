@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/veritas_ai_logo.png" alt="Veritas AI Logo" width="160" />
+</p>
+
 # Veritas AI — Personal Google Workspace AI Command Center
 
 Veritas AI is a secure, high-performance personal AI command center that integrates directly with Google Workspace (Gmail, Calendar, Drive, Sheets) to give you an intelligent, unified dashboard and conversational controller. 
@@ -9,6 +13,10 @@ Styled with premium cyberpunk glassmorphism aesthetics, it functions as an auton
 ## 🚀 Key Features (High-Value Recruiter Appeal)
 
 ### 📊 1. AI-Driven Visual Analytics Dashboard
+<p align="center">
+  <img src="docs/images/veritas_ai_dashboard.png" alt="Veritas AI Dashboard Mockup" width="650" />
+</p>
+
 * **Dynamic Workspaces Diagnostics**: Computes real-time workspace metrics on login.
 * **Custom SVG Charts (Zero Dependencies)**: Displays interactive, responsive SVG Donut and Bar charts of inbox categorization distribution (Job-Related, Personal, Promos, Spam) and top active senders.
 * **⚡ AI Productivity Briefings**: A direct pipeline that feeds active workspace metrics to Gemini to generate witty diagnostic briefings and workflow suggestions in Veritas AI’s voice.
