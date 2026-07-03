@@ -4,3 +4,5 @@ backend/memory/*.json
 dist/
 .DS_Store
 *.log
+interview_review.md
+
