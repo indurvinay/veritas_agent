@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Mail, Calendar, HardDrive, ExternalLink, X } from 'lucide-react';
+import { Search, Mail, Calendar, HardDrive, ExternalLink, X, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import { useSocketContext } from '../App';
 
@@ -12,6 +12,26 @@ export default function StatusBar({ user }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const { isConnected } = useSocketContext();
+
+  const [ragAnswer, setRagAnswer] = useState('');
+  const [ragLoading, setRagLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchQuery.length > 1) {
+      setRagLoading(true);
+      setRagAnswer('');
+      axios.post('/api/search/rag', { q: searchQuery })
+        .then(({ data }) => {
+          setRagAnswer(data.answer);
+        })
+        .catch(() => {
+          setRagAnswer('Sir, I encountered an issue querying my RAG knowledge base.');
+        })
+        .finally(() => {
+          setRagLoading(false);
+        });
+    }
+  }, [searchQuery]);
 
   // Live clock
   useEffect(() => {
@@ -145,6 +165,26 @@ export default function StatusBar({ user }) {
 
               {!searching && hasResults && (
                 <div className="space-y-4 text-xs">
+                  {/* AI Knowledge Synthesis (RAG) */}
+                  {(ragLoading || ragAnswer) && (
+                    <div className="glass-panel p-3 bg-cyan-950/15 border border-cyan-500/25 rounded-lg shadow-inner relative">
+                      <div className="absolute top-2 right-2 text-[7px] tracking-widest text-cyan-400 font-semibold flex items-center gap-1" style={{ fontFamily: 'var(--font-heading)' }}>
+                        <Sparkles size={8} /> KNOWLEDGE SYNTHESIS (RAG)
+                      </div>
+                      <h4 className="text-[9px] tracking-widest font-semibold mb-2 uppercase flex items-center gap-1.5" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-jarvis-cyan)' }}>
+                        🤖 AI Retrieval Summary
+                      </h4>
+                      {ragLoading ? (
+                        <div className="flex items-center gap-2 py-1 text-[10px] opacity-60">
+                          <span className="w-3 h-3 border border-t-transparent rounded-full animate-spin border-cyan-400" style={{ borderTopColor: 'transparent' }} />
+                          Veritas AI is analyzing and synthesizing workspace content...
+                        </div>
+                      ) : (
+                        <p className="text-[10px] leading-relaxed text-slate-300 font-mono whitespace-pre-wrap">{ragAnswer}</p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Category: Gmail */}
                   {searchResults.emails.length > 0 && (
                     <div>

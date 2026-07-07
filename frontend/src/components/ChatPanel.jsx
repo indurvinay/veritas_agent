@@ -36,10 +36,16 @@ function TypewriterText({ text, onComplete }) {
   return <span>{displayed}</span>;
 }
 
-// ─── Explainable AI Multi-Agent Log Component ───
+// ─── Explainable AI Multi-Agent Log Component with Interactive SVG Workflow Graph ───
 function AgentReasoning({ logs }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
   if (!logs || !Array.isArray(logs) || logs.length === 0) return null;
+
+  const hasGmail = logs.some((l) => l.agent.includes('Gmail'));
+  const hasCalendar = logs.some((l) => l.agent.includes('Calendar'));
+  const hasDrive = logs.some((l) => l.agent.includes('Drive'));
 
   return (
     <div className="mt-2 border-t border-cyan-500/10 pt-2 text-[10px]">
@@ -48,7 +54,7 @@ function AgentReasoning({ logs }) {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity text-cyan-400 font-semibold uppercase tracking-wider cursor-pointer"
       >
-        <span>🤖 Multi-Agent Thoughts ({logs.length})</span>
+        <span>🤖 Multi-Agent Graph Thoughts ({logs.length})</span>
         {isOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
       </button>
       
@@ -56,30 +62,107 @@ function AgentReasoning({ logs }) {
         <motion.div 
           initial={{ opacity: 0, height: 0 }} 
           animate={{ opacity: 1, height: 'auto' }} 
-          className="mt-2 space-y-2 pl-2 border-l border-cyan-500/20"
+          className="mt-2 pl-1 border-l border-cyan-500/20"
         >
-          {logs.map((log, idx) => {
-            const agentName = log.agent || 'Executive Assistant';
+          {/* SVG Workflow Visualizer Graph */}
+          <div className="glass-panel p-2 bg-black/60 border-cyan-500/10 mb-2 relative overflow-hidden rounded">
+            <svg viewBox="0 0 340 120" className="w-full h-auto">
+              <defs>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="2" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              {/* Pattern grid lines */}
+              <rect width="340" height="120" fill="rgba(0,0,0,0.1)" />
+
+              {/* Connections paths */}
+              <line x1="25" y1="60" x2="115" y2="35" stroke="rgba(0, 212, 255, 0.4)" strokeWidth="1" strokeDasharray="3,3" />
+              <line x1="115" y1="35" x2="135" y2="85" stroke={hasGmail ? '#00D4FF' : 'rgba(255,255,255,0.1)'} strokeWidth={hasGmail ? 1.5 : 0.8} />
+              <line x1="115" y1="35" x2="180" y2="85" stroke={hasCalendar ? '#D946EF' : 'rgba(255,255,255,0.1)'} strokeWidth={hasCalendar ? 1.5 : 0.8} />
+              <line x1="115" y1="35" x2="225" y2="85" stroke={hasDrive ? '#3B82F6' : 'rgba(255,255,255,0.1)'} strokeWidth={hasDrive ? 1.5 : 0.8} />
+              <line x1="115" y1="35" x2="315" y2="60" stroke="rgba(0, 255, 136, 0.3)" strokeWidth="0.8" strokeDasharray="2,2" />
+
+              <line x1="135" y1="85" x2="315" y2="60" stroke={hasGmail ? '#00D4FF' : 'rgba(255,255,255,0.1)'} strokeWidth={hasGmail ? 1 : 0.5} />
+              <line x1="180" y1="85" x2="315" y2="60" stroke={hasCalendar ? '#D946EF' : 'rgba(255,255,255,0.1)'} strokeWidth={hasCalendar ? 1 : 0.5} />
+              <line x1="225" y1="85" x2="315" y2="60" stroke={hasDrive ? '#3B82F6' : 'rgba(255,255,255,0.1)'} strokeWidth={hasDrive ? 1 : 0.5} />
+
+              {/* Node Cards */}
+              <circle cx="25" cy="60" r="9" fill="rgba(15,23,42,0.9)" stroke="#00D4FF" strokeWidth="1.2" filter="url(#glow)" />
+              <text x="25" y="62" textAnchor="middle" fontSize="5" fill="#00D4FF" fontWeight="bold">USR</text>
+              <text x="25" y="75" textAnchor="middle" fontSize="4.5" fill="rgba(255,255,255,0.4)">Input</text>
+
+              <g className="cursor-pointer" onClick={() => {
+                const execIdx = logs.findIndex(l => l.agent.includes('Executive'));
+                if (execIdx !== -1) setSelectedIdx(execIdx);
+              }}>
+                <rect x="75" y="20" width="80" height="18" rx="2" fill="rgba(15,23,42,0.95)" stroke="var(--color-matrix-green)" strokeWidth="1.2" filter="url(#glow)" />
+                <text x="115" y="31" textAnchor="middle" fontSize="5.5" fill="var(--color-matrix-green)" fontWeight="bold">◈ CENTRAL ROUTER</text>
+              </g>
+
+              <g className="cursor-pointer" onClick={() => {
+                const gIdx = logs.findIndex(l => l.agent.includes('Gmail'));
+                if (gIdx !== -1) setSelectedIdx(gIdx);
+              }}>
+                <circle cx="135" cy="85" r="9" fill="rgba(15,23,42,0.9)" stroke={hasGmail ? '#00D4FF' : 'rgba(255,255,255,0.15)'} strokeWidth="1.2" filter={hasGmail ? 'url(#glow)' : ''} />
+                <text x="135" y="87" textAnchor="middle" fontSize="5" fill={hasGmail ? '#00D4FF' : 'rgba(255,255,255,0.3)'}>GMAIL</text>
+                <text x="135" y="100" textAnchor="middle" fontSize="4" fill={hasGmail ? '#00D4FF' : 'rgba(255,255,255,0.3)'}>Gmail Agt</text>
+              </g>
+
+              <g className="cursor-pointer" onClick={() => {
+                const cIdx = logs.findIndex(l => l.agent.includes('Calendar'));
+                if (cIdx !== -1) setSelectedIdx(cIdx);
+              }}>
+                <circle cx="180" cy="85" r="9" fill="rgba(15,23,42,0.9)" stroke={hasCalendar ? '#D946EF' : 'rgba(255,255,255,0.15)'} strokeWidth="1.2" filter={hasCalendar ? 'url(#glow)' : ''} />
+                <text x="180" y="87" textAnchor="middle" fontSize="5" fill={hasCalendar ? '#D946EF' : 'rgba(255,255,255,0.3)'}>CAL</text>
+                <text x="180" y="100" textAnchor="middle" fontSize="4" fill={hasCalendar ? '#D946EF' : 'rgba(255,255,255,0.3)'}>Calendar Agt</text>
+              </g>
+
+              <g className="cursor-pointer" onClick={() => {
+                const dIdx = logs.findIndex(l => l.agent.includes('Drive'));
+                if (dIdx !== -1) setSelectedIdx(dIdx);
+              }}>
+                <circle cx="225" cy="85" r="9" fill="rgba(15,23,42,0.9)" stroke={hasDrive ? '#3B82F6' : 'rgba(255,255,255,0.15)'} strokeWidth="1.2" filter={hasDrive ? 'url(#glow)' : ''} />
+                <text x="225" y="87" textAnchor="middle" fontSize="5" fill={hasDrive ? '#3B82F6' : 'rgba(255,255,255,0.3)'}>DRV</text>
+                <text x="225" y="100" textAnchor="middle" fontSize="4" fill={hasDrive ? '#3B82F6' : 'rgba(255,255,255,0.3)'}>Drive Agt</text>
+              </g>
+
+              <circle cx="315" cy="60" r="9" fill="rgba(15,23,42,0.9)" stroke="var(--color-matrix-green)" strokeWidth="1.2" filter="url(#glow)" />
+              <text x="315" y="62" textAnchor="middle" fontSize="5" fill="var(--color-matrix-green)" fontWeight="bold">RESP</text>
+              <text x="315" y="75" textAnchor="middle" fontSize="4.5" fill="rgba(255,255,255,0.4)">Output</text>
+            </svg>
+          </div>
+
+          {/* Interactive Selected Agent Thought details */}
+          {logs[selectedIdx] && (() => {
+            const currentLog = logs[selectedIdx];
+            const agentName = currentLog.agent || 'Executive Assistant';
             let color = 'var(--color-matrix-green)';
             if (agentName.includes('Gmail')) color = '#00D4FF';
             if (agentName.includes('Calendar')) color = '#D946EF';
             if (agentName.includes('Drive')) color = '#3B82F6';
 
-            const conf = Math.round((log.confidence || 0.9) * 100);
+            const conf = Math.round((currentLog.confidence || 0.9) * 100);
 
             return (
-              <div key={idx} className="space-y-1 mt-1">
+              <motion.div 
+                key={selectedIdx}
+                initial={{ opacity: 0, y: 5 }} 
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-1 p-2 bg-slate-900/60 border border-cyan-500/10 rounded"
+              >
                 <div className="flex items-center justify-between">
-                  <span className="font-bold" style={{ color }}>◈ {agentName}</span>
+                  <span className="font-bold uppercase tracking-wider" style={{ color, fontSize: '9px' }}>◈ {agentName}</span>
                   <span className="opacity-50 font-mono text-[8px]">{conf}% confidence</span>
                 </div>
-                <div className="text-slate-400 pl-2 leading-normal" style={{ fontSize: '9px' }}>{log.thought}</div>
-                {log.sources && Array.isArray(log.sources) && log.sources.length > 0 && (
-                  <div className="pl-2 opacity-40 font-mono text-[7px]">
-                    Sourced from: {log.sources.join(', ')}
+                <div className="text-slate-300 leading-normal pl-1" style={{ fontSize: '9px' }}>{currentLog.thought}</div>
+                {currentLog.sources && Array.isArray(currentLog.sources) && currentLog.sources.length > 0 && (
+                  <div className="opacity-40 font-mono text-[7px] pl-1">
+                    Sources: {currentLog.sources.join(', ')}
                   </div>
                 )}
-                <div className="pl-2 pr-4 pt-1">
+                <div className="pt-1 pl-1 pr-1">
                   <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
                     <div 
                       className="h-full rounded-full transition-all duration-500" 
@@ -90,9 +173,20 @@ function AgentReasoning({ logs }) {
                     />
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
-          })}
+          })()}
+
+          <div className="mt-2 flex justify-between items-center text-[8px] opacity-60">
+            <span>💡 Click agent nodes in the graph to view thoughts</span>
+            <button 
+              type="button" 
+              onClick={() => setSelectedIdx((prev) => (prev + 1) % logs.length)} 
+              className="glow-btn px-1 py-0.5 text-[8px]"
+            >
+              Next Thought ➜
+            </button>
+          </div>
         </motion.div>
       )}
     </div>
@@ -182,6 +276,23 @@ export default function ChatPanel() {
   const [typingComplete, setTypingComplete] = useState({});
   const [isMuted, setIsMuted] = useState(false);
   const [ratings, setRatings] = useState({});
+  const [voices, setVoices] = useState([]);
+  const [selectedVoiceName, setSelectedVoiceName] = useState('');
+
+  useEffect(() => {
+    if (!window.speechSynthesis) return;
+    const updateVoices = () => {
+      const allVoices = window.speechSynthesis.getVoices();
+      const englishVoices = allVoices.filter(v => v.lang.startsWith('en'));
+      setVoices(englishVoices);
+      if (englishVoices.length > 0 && !selectedVoiceName) {
+        const defaultVoice = englishVoices.find(v => v.name.includes('Google') || v.name.includes('Natural')) || englishVoices[0];
+        setSelectedVoiceName(defaultVoice.name);
+      }
+    };
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+  }, [selectedVoiceName]);
   const messagesEndRef = useRef(null);
   const voiceSendTimerRef = useRef(null);
 
@@ -202,6 +313,12 @@ export default function ChatPanel() {
       const utterance = new SpeechSynthesisUtterance(cleanSpeak);
       utterance.rate = 1.05;
       utterance.pitch = 0.95;
+      
+      const matchedVoice = voices.find(v => v.name === selectedVoiceName);
+      if (matchedVoice) {
+        utterance.voice = matchedVoice;
+      }
+      
       window.speechSynthesis.speak(utterance);
     } catch (e) {
       console.warn('Speech synthesis failed:', e);
@@ -332,6 +449,21 @@ export default function ChatPanel() {
           VERITAS AI CHAT
         </span>
         <div className="flex-1" />
+        {voices.length > 0 && (
+          <select
+            value={selectedVoiceName}
+            onChange={(e) => setSelectedVoiceName(e.target.value)}
+            className="px-1.5 py-0.5 text-[8px] mr-1 bg-slate-950 border border-cyan-500/20 text-cyan-400 cursor-pointer rounded outline-none"
+            style={{ maxWidth: '80px', fontFamily: 'var(--font-mono)' }}
+            title="Select Veritas voice profile"
+          >
+            {voices.map((v) => (
+              <option key={v.name} value={v.name}>
+                {v.name.replace(/Microsoft|Google|Natural/g, '').trim().slice(0, 12)}
+              </option>
+            ))}
+          </select>
+        )}
         <button 
           type="button"
           onClick={() => {
