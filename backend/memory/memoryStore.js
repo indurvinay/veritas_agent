@@ -169,3 +169,22 @@ export async function clearProfileFacts() {
   database.data.profileFacts = [];
   await database.write();
 }
+
+/**
+ * Update rating/feedback for a message by content matching inside a session.
+ */
+export async function rateMessage(sessionId, content, rating) {
+  const database = await getDb();
+  if (!database.data.conversations) return false;
+  
+  const session = database.data.conversations.find((c) => c.id === sessionId);
+  if (!session) return false;
+  
+  const msg = session.messages.find((m) => m.content === content || m.content.includes(content));
+  if (msg) {
+    msg.rating = rating; // 'like' or 'dislike'
+    await database.write();
+    return true;
+  }
+  return false;
+}

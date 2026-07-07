@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Mic, MicOff, Mail, Calendar, HardDrive, Table, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, Mic, MicOff, Mail, Calendar, HardDrive, Table, Sparkles, ChevronDown, ChevronUp, Volume2, VolumeX, ThumbsUp, ThumbsDown } from 'lucide-react';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'react-hot-toast';
 
 const QUICK_ACTIONS = [
   { icon: Mail, label: '📧 Check Emails', message: 'Check my recent emails and summarize any important ones' },
@@ -179,6 +180,8 @@ export default function ChatPanel() {
   const [loading, setLoading] = useState(false);
   const [sessionId] = useState(() => uuidv4());
   const [typingComplete, setTypingComplete] = useState({});
+  const [isMuted, setIsMuted] = useState(false);
+  const [ratings, setRatings] = useState({});
   const messagesEndRef = useRef(null);
   const voiceSendTimerRef = useRef(null);
 
@@ -190,6 +193,38 @@ export default function ChatPanel() {
     stopListening,
     setTranscript,
   } = useVoiceRecognition();
+
+  const speakText = (text) => {
+    if (isMuted || !window.speechSynthesis) return;
+    try {
+      window.speechSynthesis.cancel();
+      const cleanSpeak = text.replace(/◈/g, '').replace(/✅/g, '').replace(/✉️/g, ''); // Strip symbols for clean speech
+      const utterance = new SpeechSynthesisUtterance(cleanSpeak);
+      utterance.rate = 1.05;
+      utterance.pitch = 0.95;
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn('Speech synthesis failed:', e);
+    }
+  };
+
+  const handleRateMessage = async (msgContent, rating) => {
+    const current = ratings[msgContent];
+    const targetRating = current === rating ? null : rating;
+    setRatings((prev) => ({ ...prev, [msgContent]: targetRating }));
+    
+    if (targetRating) {
+      try {
+        await axios.post('/api/chat/feedback', {
+          sessionId,
+          content: msgContent,
+          rating: targetRating,
+        });
+      } catch (err) {
+        console.warn('Failed to submit rating', err.message);
+      }
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -209,9 +244,8 @@ export default function ChatPanel() {
   // Auto-send after voice stops (user finished speaking)
   useEffect(() => {
     if (!isListening && transcript.trim()) {
-      // Short delay to ensure final transcript is captured
       voiceSendTimerRef.current = setTimeout(() => {
-        sendMessage(transcript.trim());
+        sendMessage(transcript.trim(), true);
         setTranscript('');
       }, 600);
     }
@@ -220,7 +254,18 @@ export default function ChatPanel() {
     };
   }, [isListening, transcript]);
 
-  const sendMessage = async (text) => {
+  // Listen for Dashboard diagnostic action triggers
+  useEffect(() => {
+    const handleActionTrigger = (e) => {
+      if (e.detail) {
+        sendMessage(e.detail, false);
+      }
+    };
+    window.addEventListener('veritas-chat-trigger', handleActionTrigger);
+    return () => window.removeEventListener('veritas-chat-trigger', handleActionTrigger);
+  }, [sessionId]);
+
+  const sendMessage = async (text, isVoice = false) => {
     if (!text.trim()) return;
 
     const userMsg = { id: uuidv4(), role: 'user', content: text, timestamp: new Date().toISOString() };
@@ -240,6 +285,11 @@ export default function ChatPanel() {
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
+
+      // Talk back if voice input was used
+      if (isVoice) {
+        speakText(data.response);
+      }
     } catch (err) {
       const errorMsg = {
         id: uuidv4(),
@@ -254,7 +304,7 @@ export default function ChatPanel() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    sendMessage(input);
+    sendMessage(input, false);
   };
 
   const handleVoiceToggle = () => {
@@ -282,6 +332,22 @@ export default function ChatPanel() {
           VERITAS AI CHAT
         </span>
         <div className="flex-1" />
+        <button 
+          type="button"
+          onClick={() => {
+            const nextMuted = !isMuted;
+            setIsMuted(nextMuted);
+            if (nextMuted && window.speechSynthesis) {
+              window.speechSynthesis.cancel();
+            }
+            toast.success(nextMuted ? 'Muted speech synthesis' : 'Speech synthesis enabled');
+          }}
+          className="glow-btn p-1 mr-1 flex items-center justify-center cursor-pointer"
+          style={{ width: '22px', height: '22px' }}
+          title={isMuted ? 'Unmute Veritas voice' : 'Mute Veritas voice'}
+        >
+          {isMuted ? <VolumeX size={10} style={{ color: '#FF4444' }} /> : <Volume2 size={10} style={{ color: 'var(--color-jarvis-cyan)' }} />}
+        </button>
         {isListening && (
           <motion.span
             initial={{ opacity: 0 }}
@@ -342,6 +408,28 @@ export default function ChatPanel() {
                 {/* Agent Reasoning Chain */}
                 {msg.role === 'assistant' && msg.reasoning && (
                   <AgentReasoning logs={msg.reasoning} />
+                )}
+
+                {/* RLHF Feedback Buttons */}
+                {msg.role === 'assistant' && (
+                  <div className="mt-2 flex items-center gap-2 opacity-50 hover:opacity-100 transition-opacity border-t border-cyan-500/5 pt-1.5">
+                    <button 
+                      type="button" 
+                      onClick={() => handleRateMessage(msg.content, 'like')}
+                      className="cursor-pointer hover:text-green-400 transition-colors"
+                      title="Good response"
+                    >
+                      <ThumbsUp size={10} style={{ color: ratings[msg.content] === 'like' ? '#10b981' : undefined }} />
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => handleRateMessage(msg.content, 'dislike')}
+                      className="cursor-pointer hover:text-red-400 transition-colors"
+                      title="Bad response"
+                    >
+                      <ThumbsDown size={10} style={{ color: ratings[msg.content] === 'dislike' ? '#ef4444' : undefined }} />
+                    </button>
+                  </div>
                 )}
 
                 {/* Action Badge */}

@@ -226,4 +226,19 @@ router.get('/actions', async (req, res) => {
   res.json({ actions });
 });
 
+// POST /api/chat/feedback — Rate/feedback a message
+router.post('/feedback', async (req, res) => {
+  try {
+    const { sessionId, content, rating } = req.body;
+    if (!sessionId || !content || !rating) {
+      return res.status(400).json({ error: 'Missing parameters: sessionId, content, or rating' });
+    }
+    const success = await memoryStore.rateMessage(sessionId, content, rating);
+    res.json({ success });
+  } catch (err) {
+    console.error('Feedback rating error:', err.message);
+    res.status(500).json({ error: 'Failed to save message feedback', details: err.message });
+  }
+});
+
 export default router;

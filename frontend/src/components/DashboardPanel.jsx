@@ -124,6 +124,68 @@ Based on these diagnostics, write a professional, concise Veritas AI summary of 
     return Math.max(...topSenders.map((s) => s.count), 1);
   }, [topSenders]);
 
+  const suggestionCards = useMemo(() => {
+    if (!aiInsight) return [];
+    
+    const lines = aiInsight.split('\n');
+    const cards = [];
+    
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('-') || trimmed.startsWith('*') || /^\d+\./.test(trimmed)) {
+        const text = trimmed.replace(/^[-*\s]+|^\d+\.\s*/, '');
+        if (text.length > 10) {
+          let actionLabel = 'Consult AI';
+          let actionCmd = `Execute plan for: ${text}`;
+          let icon = '🤖';
+
+          const lower = text.toLowerCase();
+          if (lower.includes('email') || lower.includes('reply') || lower.includes('inbox') || lower.includes('draft')) {
+            actionLabel = 'Compose Reply';
+            actionCmd = 'Check unread emails and draft a priority response';
+            icon = '✉️';
+          } else if (lower.includes('schedule') || lower.includes('calendar') || lower.includes('meeting') || lower.includes('event')) {
+            actionLabel = 'Open Calendar';
+            actionCmd = 'List my calendar events for this week and check for conflicts';
+            icon = '📅';
+          } else if (lower.includes('file') || lower.includes('drive') || lower.includes('document')) {
+            actionLabel = 'Check Files';
+            actionCmd = 'List my Google Drive files and check for recent modifications';
+            icon = '📁';
+          } else if (lower.includes('sheet') || lower.includes('database') || lower.includes('log')) {
+            actionLabel = 'View Sheets';
+            actionCmd = 'Read my Google Sheet and check log counts';
+            icon = '📊';
+          }
+
+          cards.push({ text, actionLabel, actionCmd, icon });
+        }
+      }
+    });
+
+    if (cards.length === 0 && aiInsight.length > 50) {
+      cards.push({
+        text: "Inbox health advisor: Filter promotions and clean spam records.",
+        actionLabel: "Analyze Emails",
+        actionCmd: "Check recent emails and check spam ratings",
+        icon: "✉️"
+      });
+      cards.push({
+        text: "Schedule coordinator: Check for calendar synchronization conflicts.",
+        actionLabel: "Audit Calendar",
+        actionCmd: "List today's events and report availability",
+        icon: "📅"
+      });
+    }
+
+    return cards.slice(0, 3);
+  }, [aiInsight]);
+
+  const handleTriggerAction = (cmd) => {
+    toast.success('Routing command to Veritas AI...');
+    window.dispatchEvent(new CustomEvent('veritas-chat-trigger', { detail: cmd }));
+  };
+
   const isLoading = loadingGmail || loadingSheets || loadingActions || loadingUnread;
 
   return (
@@ -356,14 +418,44 @@ Based on these diagnostics, write a professional, concise Veritas AI summary of 
         </div>
 
         {aiInsight ? (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            className="text-xs leading-relaxed mb-4 glass-panel p-3 bg-cyan-950/5"
-            style={{ color: 'var(--color-text-secondary)', border: '1px dashed rgba(0, 212, 255, 0.15)' }}
-          >
-            {aiInsight}
-          </motion.div>
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              className="text-xs leading-relaxed mb-4 glass-panel p-3 bg-cyan-950/5"
+              style={{ color: 'var(--color-text-secondary)', border: '1px dashed rgba(0, 212, 255, 0.15)' }}
+            >
+              {aiInsight}
+            </motion.div>
+
+            {/* Actionable Suggestion Cards */}
+            {suggestionCards.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <p className="text-[9px] uppercase tracking-widest text-cyan-400 font-semibold mb-2">⚡ Actionable AI Recommendations</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {suggestionCards.map((card, idx) => (
+                    <div 
+                      key={idx} 
+                      className="glass-panel p-3 bg-black/40 border-cyan-500/10 flex flex-col justify-between gap-2"
+                      style={{ fontSize: '10px' }}
+                    >
+                      <div className="flex gap-2">
+                        <span className="text-sm">{card.icon}</span>
+                        <span className="text-slate-300 leading-normal">{card.text}</span>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => handleTriggerAction(card.actionCmd)}
+                        className="glow-btn glow-btn-primary py-1 text-[9px] w-full cursor-pointer text-center"
+                      >
+                        {card.actionLabel}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <p className="text-xs opacity-50 mb-4">
             Sir, click below to initialize a full diagnostic scan of your workspace data. I will generate a comprehensive briefing, alert you of any issues, and suggest optimization strategies.
