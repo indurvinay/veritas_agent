@@ -1,8 +1,43 @@
+# Dependencies
 node_modules/
-.env
-backend/memory/*.json
-dist/
-.DS_Store
-*.log
-interview_review.md
+**/node_modules/
+.venv/
+**/.venv/
+venv/
+**/venv/
 
+# Environment secrets
+.env
+**/.env
+*.env
+.env.*
+backend/memory/*.json
+
+# Build & distribution outputs
+dist/
+build/
+bin/
+obj/
+
+# Python cache & compiled files
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# ADK local state
+.adk/
+**/.adk/
+*.db
+
+# Caches and logs
+.pytest_cache/
+.ruff_cache/
+*.log
+.DS_Store
+Thumbs.db
+
+# Other
+interview_review.md

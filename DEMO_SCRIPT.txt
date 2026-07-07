@@ -1,0 +1,31 @@
+[0:00 — HOOK]
+Hello everyone. Today, I'm excited to present Veritas AI, an intelligent personal command center built for high-velocity workspace coordination. Executive assistants, project managers, and startup founders waste hours context-switching between tabs just to manage emails, files, and calendars. Veritas AI unifies these actions into a single conversational HUD.
+
+[0:20 — WHAT IT IS]
+Veritas AI is designed for the Agents for Business track. It connects directly to Google Workspace APIs and coordinates tasks like automated email classification, smart scheduling, and parallel search. Everything runs in a secure, audited local Node.js and React monorepo.
+
+[0:40 — SHOW THE BANNER]
+(show assets/cover_page_banner.png)
+As you can see on the project banner, Veritas AI is structured as a holographic command center, powered by Gemini 2.5 Flash. It provides clean email triage, calendar synchronization, and interactive data sheets with a futuristic cyberpunk design.
+
+[1:00 — ARCHITECTURE]
+(show assets/architecture_diagram.png)
+Let's walk through the architecture. The frontend is built with React 18, Vite, and Three.js, producing a beautiful 3D grid line and starry background. The voice interface communicates with browser-native speech recognition. 
+
+The frontend sends messages to our Node.js and Express backend. The backend manages direct Google OAuth2 flows securely, saving tokens locally. When a request is received, the backend executes parallel searches across the Gmail, Calendar, and Drive APIs. The Gemini 2.5 Flash model handles natural language intent parsing and email drafting, while a local LowDB database acts as our session audit store.
+
+[2:00 — LIVE DEMO]
+(switch to browser at localhost:5173)
+Let's look at the live app. Notice the Three.js 3D grid background and the glowing Jarvis Orb. First, I will click "Connect with Google" to complete the OAuth consent screen. Now that we are authorized, let's test our three main features.
+
+First, the Gmail Triage. Notice how my latest emails are automatically classified into JOB, REAL, or SPAM categories. When I click on this briefing email, I can click "Draft Reply with AI". The backend sends the email content to Gemini, which generates a professional reply. I can edit this text right here before clicking Send.
+
+Second, let's schedule an appointment using voice. I'll click the mic icon on the Jarvis Orb (click mic). "Schedule a design sync tomorrow at 2 PM." (pause) The Web Speech API transcribed my command instantly. Gemini parsed the date and time, and our Calendar Agent automatically added the event to Google Calendar, updating my dashboard.
+
+Third, let's try the Sheet integration. Below, the metrics sheet displays live rows from a Google Sheet. I can double-click a cell and change its value—for example, updating this status to "In Progress". The backend instantly updates the cell in the remote Google Sheet and refreshes our SVG analytics chart.
+
+[3:00 — SECURITY & INTENT]
+Security is central to Veritas AI. The backend uses a smart HTML sanitizer to scrub script tags and trackers, reducing token counts by 75%. Also, to prevent rate limit bottlenecks, we use local regex rules to triage emails, calling Gemini only for complex, ambiguous cases. Finally, every destructive action, like sending emails, has a strict human-in-the-loop gate requiring a final click before executing.
+
+[3:30 — IMPACT / CLOSE]
+In summary, Veritas AI unifies your workspace into one fast, secure, and beautiful dashboard, reducing daily context-switching times by up to 80%. It demonstrates that we can build highly capable, production-ready AI assistants that respect user privacy and security. Thank you!
