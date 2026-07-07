@@ -1,13 +1,18 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { Mail, Table, Activity, Sparkles, RefreshCw, BarChart2, PieChart, Info } from 'lucide-react';
+import { Mail, Table, Activity, Sparkles, RefreshCw, BarChart2, PieChart, Info, FileText } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
 export default function DashboardPanel() {
   const [generatingInsight, setGeneratingInsight] = useState(false);
   const [aiInsight, setAiInsight] = useState('');
+
+  const handleDownloadReport = () => {
+    toast.success('Compiling workspace metrics...');
+    window.open('/api/report/generate', '_blank');
+  };
 
   // 1. Fetch Gmail data
   const { data: gmailData, isLoading: loadingGmail, refetch: refetchGmail } = useQuery({
@@ -141,9 +146,23 @@ Based on these diagnostics, write a professional, concise Veritas AI summary of 
             DIAGNOSTICS & ANALYTICS
           </h2>
         </div>
-        <button className="glow-btn text-[10px] flex items-center gap-1" onClick={handleRefreshAll} disabled={isLoading}>
-          <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} /> Refresh All
-        </button>
+        <div className="flex gap-2">
+          <button 
+            type="button"
+            className="glow-btn text-[10px] flex items-center gap-1 cursor-pointer" 
+            onClick={handleDownloadReport}
+          >
+            <FileText size={13} /> Generate Report
+          </button>
+          <button 
+            type="button"
+            className="glow-btn text-[10px] flex items-center gap-1 cursor-pointer" 
+            onClick={handleRefreshAll} 
+            disabled={isLoading}
+          >
+            <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} /> Refresh All
+          </button>
+        </div>
       </div>
 
       {/* Metric Cards */}

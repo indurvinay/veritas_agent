@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Mic, MicOff, Mail, Calendar, HardDrive, Table, Sparkles } from 'lucide-react';
+import { Send, Mic, MicOff, Mail, Calendar, HardDrive, Table, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -33,6 +33,69 @@ function TypewriterText({ text, onComplete }) {
   }, [text]);
 
   return <span>{displayed}</span>;
+}
+
+// ─── Explainable AI Multi-Agent Log Component ───
+function AgentReasoning({ logs }) {
+  const [isOpen, setIsOpen] = useState(false);
+  if (!logs || !Array.isArray(logs) || logs.length === 0) return null;
+
+  return (
+    <div className="mt-2 border-t border-cyan-500/10 pt-2 text-[10px]">
+      <button 
+        type="button" 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity text-cyan-400 font-semibold uppercase tracking-wider cursor-pointer"
+      >
+        <span>🤖 Multi-Agent Thoughts ({logs.length})</span>
+        {isOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+      </button>
+      
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }} 
+          animate={{ opacity: 1, height: 'auto' }} 
+          className="mt-2 space-y-2 pl-2 border-l border-cyan-500/20"
+        >
+          {logs.map((log, idx) => {
+            const agentName = log.agent || 'Executive Assistant';
+            let color = 'var(--color-matrix-green)';
+            if (agentName.includes('Gmail')) color = '#00D4FF';
+            if (agentName.includes('Calendar')) color = '#D946EF';
+            if (agentName.includes('Drive')) color = '#3B82F6';
+
+            const conf = Math.round((log.confidence || 0.9) * 100);
+
+            return (
+              <div key={idx} className="space-y-1 mt-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold" style={{ color }}>◈ {agentName}</span>
+                  <span className="opacity-50 font-mono text-[8px]">{conf}% confidence</span>
+                </div>
+                <div className="text-slate-400 pl-2 leading-normal" style={{ fontSize: '9px' }}>{log.thought}</div>
+                {log.sources && Array.isArray(log.sources) && log.sources.length > 0 && (
+                  <div className="pl-2 opacity-40 font-mono text-[7px]">
+                    Sourced from: {log.sources.join(', ')}
+                  </div>
+                )}
+                <div className="pl-2 pr-4 pt-1">
+                  <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500" 
+                      style={{ 
+                        width: `${conf}%`, 
+                        background: conf > 80 ? 'linear-gradient(90deg, #00D4FF, #10b981)' : 'linear-gradient(90deg, #f59e0b, #ef4444)' 
+                      }} 
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
+    </div>
+  );
 }
 
 // ─── Voice Recognition Hook ───
@@ -173,6 +236,7 @@ export default function ChatPanel() {
         role: 'assistant',
         content: data.response,
         action: data.action,
+        reasoning: data.reasoning,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -273,6 +337,11 @@ export default function ChatPanel() {
                   />
                 ) : (
                   msg.content
+                )}
+
+                {/* Agent Reasoning Chain */}
+                {msg.role === 'assistant' && msg.reasoning && (
+                  <AgentReasoning logs={msg.reasoning} />
                 )}
 
                 {/* Action Badge */}

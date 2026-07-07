@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
-import { HardDrive, Upload, Download, Trash2, Search, FileText, Image, Table, File, Folder, RefreshCw } from 'lucide-react';
+import { HardDrive, Upload, Download, Trash2, Search, FileText, Image, Table, File, Folder, RefreshCw, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
@@ -23,6 +23,29 @@ export default function DrivePanel() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
+
+  const [activeFile, setActiveFile] = useState(null);
+  const [queryText, setQueryText] = useState('');
+  const [analysisResult, setAnalysisResult] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const handleAnalyze = async (customQuery = '') => {
+    if (!activeFile) return;
+    const finalQuery = typeof customQuery === 'string' && customQuery ? customQuery : queryText;
+    if (!finalQuery.trim()) return;
+    
+    setAnalyzing(true);
+    setAnalysisResult('');
+    try {
+      const { data } = await axios.post(`/api/drive/files/${activeFile.id}/analyze`, { query: finalQuery });
+      setAnalysisResult(data.analysis);
+      toast.success('Document analysis complete!');
+    } catch (err) {
+      setAnalysisResult('I apologize, sir. Connection to my core document intelligence engine was interrupted.');
+      toast.error('Analysis failed');
+    }
+    setAnalyzing(false);
+  };
 
   // Debounce search input by 500ms
   useEffect(() => {
@@ -210,10 +233,13 @@ export default function DrivePanel() {
 
                     {/* Hover Actions */}
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="glow-btn p-1" onClick={() => handleDownload(file.id)}>
+                      <button className="glow-btn p-1 text-cyan-400 border-cyan-500/30" title="Analyze with AI" onClick={() => { setActiveFile(file); setAnalysisResult(''); setQueryText(''); }}>
+                        <Sparkles size={12} />
+                      </button>
+                      <button className="glow-btn p-1" onClick={() => handleDownload(file.id)} title="Download file">
                         <Download size={12} />
                       </button>
-                      <button className="glow-btn glow-btn-danger p-1" onClick={() => handleDelete(file.id, file.name)}>
+                      <button className="glow-btn glow-btn-danger p-1" onClick={() => handleDelete(file.id, file.name)} title="Delete file">
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -224,6 +250,91 @@ export default function DrivePanel() {
           )
         )}
       </div>
+
+      {/* Document Intelligence Drawer */}
+      <AnimatePresence>
+        {activeFile && (
+          <motion.div
+            initial={{ opacity: 0, x: 150 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 150 }}
+            className="fixed top-0 right-0 h-full w-[420px] bg-slate-950/95 border-l border-cyan-500/20 shadow-2xl z-50 p-5 flex flex-col"
+          >
+            <div className="flex items-center justify-between border-b border-cyan-500/10 pb-3 mb-4">
+              <div>
+                <h3 className="text-sm uppercase tracking-wider font-semibold text-cyan-400 flex items-center gap-2">
+                  <Sparkles size={14} /> Document Intel
+                </h3>
+                <p className="text-[10px] text-slate-400 truncate max-w-[280px] mt-1">{activeFile.name}</p>
+              </div>
+              <button 
+                type="button"
+                className="glow-btn text-xs px-2 py-1 cursor-pointer" 
+                onClick={() => setActiveFile(null)}
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button 
+                type="button" 
+                className="glow-btn text-[10px] py-1.5 cursor-pointer" 
+                disabled={analyzing} 
+                onClick={() => handleAnalyze('Summarize this document in 3 bullet points')}
+              >
+                📋 Summarize Doc
+              </button>
+              <button 
+                type="button" 
+                className="glow-btn text-[10px] py-1.5 cursor-pointer" 
+                disabled={analyzing} 
+                onClick={() => handleAnalyze('Extract key insights and core action items from this document')}
+              >
+                💡 Key Insights
+              </button>
+            </div>
+
+            {/* Response Box */}
+            <div className="flex-1 overflow-y-auto glass-panel p-4 bg-black/40 border-cyan-500/10 rounded-lg text-xs leading-relaxed mb-4 min-h-0">
+              {analyzing ? (
+                <div className="flex flex-col items-center justify-center h-full opacity-60">
+                  <Sparkles size={20} className="animate-spin text-cyan-400 mb-2" />
+                  <p className="text-[10px] text-center text-cyan-400">Veritas AI is analyzing file contents...</p>
+                </div>
+              ) : analysisResult ? (
+                <div className="whitespace-pre-wrap text-slate-300 font-mono text-[10px] leading-normal">{analysisResult}</div>
+              ) : (
+                <div className="flex items-center justify-center h-full opacity-30 text-[10px] text-center text-slate-400">
+                  Select a quick command above or type a custom question below to consult Veritas AI.
+                </div>
+              )}
+            </div>
+
+            {/* Input Box */}
+            <form 
+              onSubmit={(e) => { e.preventDefault(); handleAnalyze(); }}
+              className="flex gap-2"
+            >
+              <input
+                className="jarvis-input flex-1 text-xs"
+                placeholder="Ask AI about this file..."
+                value={queryText}
+                onChange={(e) => setQueryText(e.target.value)}
+                disabled={analyzing}
+              />
+              <button 
+                type="submit" 
+                className="glow-btn glow-btn-primary px-3 text-xs cursor-pointer" 
+                disabled={analyzing || !queryText.trim()}
+              >
+                Send
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

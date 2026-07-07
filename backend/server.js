@@ -17,6 +17,7 @@ import sheetsRoutes from './routes/sheetsRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import newsRoutes from './routes/newsRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 import { getUnreadCount } from './agents/gmailAgent.js';
 import { requireAuth } from './middleware/authMiddleware.js';
 
@@ -61,6 +62,7 @@ app.use('/api/sheets', requireAuth, sheetsRoutes);
 app.use('/api/chat', requireAuth, chatRoutes);
 app.use('/api/news', requireAuth, newsRoutes);
 app.use('/api/search', requireAuth, searchRoutes);
+app.use('/api/report', requireAuth, reportRoutes);
 
 // ─── Health Check ───
 app.get('/api/health', (req, res) => {

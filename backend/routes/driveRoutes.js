@@ -4,6 +4,7 @@ import * as driveAgent from '../agents/driveAgent.js';
 import * as memoryStore from '../memory/memoryStore.js';
 import { isDemo } from '../auth/googleAuth.js';
 import { mockFiles, uploadMockFile, deleteMockFile } from '../utils/mockStore.js';
+import * as geminiAgent from '../agents/geminiAgent.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limit
@@ -101,6 +102,34 @@ router.get('/search', async (req, res) => {
   } catch (err) {
     console.error('Drive search error:', err.message);
     res.status(500).json({ error: 'Failed to search files', details: err.message });
+  }
+});
+
+// POST /api/drive/files/:id/analyze — Analyze a file's content
+router.post('/files/:id/analyze', async (req, res) => {
+  try {
+    const fileId = req.params.id;
+    const query = req.body.query || 'Summarize this document';
+    
+    let fileName = 'Unknown Document';
+    let fileContent = '';
+
+    if (isDemo()) {
+      const file = mockFiles.find((f) => f.id === fileId);
+      fileName = file ? file.name : 'Demo Document';
+      fileContent = `[DEMO FILE CONTENT] This is a demo file named ${fileName}. It contains simulated business records for client onboarding, including email templates, task updates, and workspace status reports.`;
+    } else {
+      const doc = await driveAgent.readFileText(fileId);
+      fileName = doc.name;
+      fileContent = doc.content;
+    }
+
+    const analysis = await geminiAgent.analyzeDocument(fileName, fileContent, query);
+    await memoryStore.logAction('ANALYZE_FILE', `Analyzed document: "${fileName}" with query: "${query}"`);
+    res.json({ success: true, fileName, analysis });
+  } catch (err) {
+    console.error('Drive file analysis error:', err.message);
+    res.status(500).json({ error: 'Failed to analyze file', details: err.message });
   }
 });
 

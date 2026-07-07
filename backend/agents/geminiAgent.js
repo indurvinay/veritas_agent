@@ -20,18 +20,33 @@ export async function chat(userMessage, sessionId, role = 'user') {
     : 'No facts stored yet.';
 
   const systemPrompt = `You are Veritas AI — A highly advanced, secure personal AI command center assistant.
-You are a personal AI command center assistant with full access to the user's Google Workspace:
-- Gmail: Read, classify, reply, send, delete emails
-- Calendar: View, create, update, delete events
-- Drive: List, upload, download, delete files
-- Sheets: Read, append, update data
+You coordinate a collaborative multi-agent network to manage the user's workspace:
+- Gmail Agent: Handles inbox search, email composition, and automatic summaries.
+- Calendar Agent: Accesses schedules, books slot invites, and prevents conflicts.
+- Drive Agent: Retrieves, uploads, and analyzes documents.
+- Executive Assistant: Serves as the central router, tracking tasks, system memory, and orchestrating workflow plans.
 
 PERSONALITY: You are efficient, precise, and highly professional. You call the user "sir" or "ma'am" occasionally.
 You speak concisely, use technical language when appropriate, and always confirm actions before executing them.
 
-CAPABILITIES — When the user asks you to DO something, respond with BOTH:
-1. A natural language response
-2. A JSON action block (if an action is needed) in this exact format:
+EXPLAINABLE MULTI-AGENT LOGS:
+For EVERY single request, you MUST output a JSON reasoning block listing the thoughts and confidence scores of the coordinating sub-agents.
+Format it exactly like this:
+%%%REASONING%%%
+[
+  {
+    "agent": "Gmail Agent | Calendar Agent | Drive Agent | Executive Assistant",
+    "thought": "Specific reasoning, e.g. 'Checking unread emails for urgent requests.'",
+    "confidence": 0.95,
+    "sources": ["Gmail inbox", "User profile memory", "User prompt"]
+  }
+]
+%%%END_REASONING%%%
+
+CAPABILITIES — When the user asks you to DO something, respond with:
+1. The reasoning block above
+2. A natural language response
+3. A JSON action block (if an action is needed) in this exact format:
    %%%ACTION%%%
    {"action": "ACTION_TYPE", "params": {...}}
    %%%END_ACTION%%%
@@ -54,7 +69,7 @@ INSTRUCTIONS FOR MEMORY:
 - Do not repeat facts that are already in the User Profile Memory list.
 - If the user asks you what you know about them or asks who they are, refer to the User Profile Memory above.
 
-If the user is just chatting (no action needed), respond conversationally without an action block.
+If the user is just chatting (no action needed), respond conversationally with the reasoning block and a text message without an action block.
 Always be helpful and context-aware based on prior conversation history.`;
 
   // Build context from recent messages (exclude system messages)
@@ -67,10 +82,10 @@ Always be helpful and context-aware based on prior conversation history.`;
   const currentTurnPrompt = role === 'system'
     ? `System Notification (Invisible to User): ${userMessage}
     
-Please formulate your final response to the user's original query as Veritas AI. Keep your response concise, polite, and confirm the action was successful or failed.`
+    Please formulate your final response to the user's original query as Veritas AI. Keep your response concise, polite, and confirm the action was successful or failed.`
     : `User: ${userMessage}
     
-Respond as Veritas AI:`;
+    Respond as Veritas AI:`;
 
   const fullPrompt = `${systemPrompt}
 
@@ -87,6 +102,17 @@ ${currentTurnPrompt}`;
 
     const text = response.text || '';
 
+    // Parse reasoning if present
+    let reasoning = null;
+    const reasoningMatch = text.match(/%%%REASONING%%%([\s\S]*?)%%%END_REASONING%%%/);
+    if (reasoningMatch) {
+      try {
+        reasoning = JSON.parse(reasoningMatch[1].trim());
+      } catch {
+        // Malformed reasoning JSON — ignore
+      }
+    }
+
     // Parse action if present
     let action = null;
     const actionMatch = text.match(/%%%ACTION%%%([\s\S]*?)%%%END_ACTION%%%/);
@@ -98,15 +124,16 @@ ${currentTurnPrompt}`;
       }
     }
 
-    // Clean response text (remove action block from displayed text)
+    // Clean response text (remove action and reasoning blocks from displayed text)
     const cleanText = text
+      .replace(/%%%REASONING%%%[\s\S]*?%%%END_REASONING%%%/, '')
       .replace(/%%%ACTION%%%[\s\S]*?%%%END_ACTION%%%/, '')
       .trim();
 
     // Store assistant response
     await memoryStore.addMessage(sessionId, 'assistant', cleanText);
 
-    return { text: cleanText, action };
+    return { text: cleanText, action, reasoning };
   } catch (err) {
     console.error('Gemini chat error:', err.message);
     throw new Error('Failed to get response from Veritas AI');
@@ -264,9 +291,38 @@ Refined Draft (${tone} tone):`;
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
-    return response.text || roughDraft;
+    return response.text || '';
   } catch (err) {
     console.error('Gemini polish draft error:', err.message);
     return roughDraft;
+  }
+}
+
+/**
+ * Analyze a document's content based on a user query.
+ */
+export async function analyzeDocument(fileName, fileContent, query) {
+  const prompt = `You are Veritas AI, the user's secure AI document intelligence assistant.
+Analyze the following document and answer the user's question or summarize it as requested.
+
+DOCUMENT NAME: ${fileName}
+DOCUMENT CONTENT:
+"""
+${fileContent}
+"""
+
+USER QUESTION: ${query}
+
+Provide a concise, professional analysis. If the file is binary and content could not be extracted, explain what metadata is available and what steps the user should take. Use clear bullet points if needed. Do not include markdown formatting like HTML tags, just clean text.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    return response.text || 'I apologize, sir. I was unable to generate an analysis of the document.';
+  } catch (err) {
+    console.error('Gemini document analysis error:', err.message);
+    throw err;
   }
 }

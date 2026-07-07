@@ -164,7 +164,7 @@ router.post('/message', async (req, res) => {
   }
 
   try {
-    let { text, action } = await geminiAgent.chat(message, sessionId);
+    let { text, action, reasoning } = await geminiAgent.chat(message, sessionId);
 
     let actionResult = null;
     if (action) {
@@ -182,6 +182,7 @@ Please generate a conversational response to the user as Veritas AI confirming t
 
         const secondTurn = await geminiAgent.chat(systemUpdateMessage, sessionId, 'system');
         text = secondTurn.text;
+        reasoning = secondTurn.reasoning || reasoning;
       }
     }
 
@@ -189,6 +190,7 @@ Please generate a conversational response to the user as Veritas AI confirming t
       response: text,
       sessionId,
       action: actionResult,
+      reasoning,
     });
   } catch (err) {
     console.error('Chat error:', err.message);

@@ -157,3 +157,45 @@ export async function searchFiles(query) {
     webViewLink: file.webViewLink,
   }));
 }
+
+/**
+ * Read text content of a file or Google Doc.
+ */
+export async function readFileText(fileId) {
+  const drive = getDrive();
+  
+  // Get metadata first
+  const { data: meta } = await drive.files.get({
+    fileId,
+    fields: 'id, name, mimeType',
+  });
+
+  if (meta.mimeType === 'application/vnd.google-apps.document') {
+    // Export Google Docs to plain text
+    const res = await drive.files.export({
+      fileId,
+      mimeType: 'text/plain',
+    });
+    const content = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+    return { name: meta.name, mimeType: meta.mimeType, content };
+  } else if (
+    meta.mimeType === 'text/plain' || 
+    meta.mimeType === 'text/markdown' || 
+    meta.mimeType === 'text/csv' || 
+    meta.mimeType === 'application/json' ||
+    meta.mimeType === 'application/xml' ||
+    meta.mimeType.startsWith('text/')
+  ) {
+    // Fetch direct file media content
+    const res = await drive.files.get({
+      fileId,
+      alt: 'media',
+    });
+    const content = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+    return { name: meta.name, mimeType: meta.mimeType, content };
+  } else {
+    // Return metadata if binary file
+    const content = `[File Metadata]\nName: ${meta.name}\nType: ${meta.mimeType}\nContent extraction is not supported for binary file types.`;
+    return { name: meta.name, mimeType: meta.mimeType, content };
+  }
+}
