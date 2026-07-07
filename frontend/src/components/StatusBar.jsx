@@ -20,16 +20,24 @@ export default function StatusBar({ user }) {
     if (searchQuery.length > 1) {
       setRagLoading(true);
       setRagAnswer('');
-      axios.post('/api/search/rag', { q: searchQuery })
-        .then(({ data }) => {
-          setRagAnswer(data.answer);
-        })
-        .catch(() => {
-          setRagAnswer('Sir, I encountered an issue querying my RAG knowledge base.');
-        })
-        .finally(() => {
-          setRagLoading(false);
-        });
+      // Debounce RAG queries to avoid excessive Gemini API calls
+      const timer = setTimeout(() => {
+        axios.post('/api/search/rag', { q: searchQuery })
+          .then(({ data }) => {
+            setRagAnswer(data.answer);
+          })
+          .catch(() => {
+            setRagAnswer('');
+            setRagLoading(false);
+          })
+          .finally(() => {
+            setRagLoading(false);
+          });
+      }, 800);
+      return () => clearTimeout(timer);
+    } else {
+      setRagAnswer('');
+      setRagLoading(false);
     }
   }, [searchQuery]);
 

@@ -170,19 +170,12 @@ router.post('/message', async (req, res) => {
     if (action) {
       actionResult = await executeAction(action);
 
-      if (actionResult) {
-        const isSuccess = !actionResult.error;
-        const systemUpdateMessage = `[SYSTEM TOOL OUTPUT for ${action.action}]:
-${isSuccess ? JSON.stringify(actionResult.result || actionResult.message) : `ERROR: ${actionResult.error}`}
-
-User Query was: "${message}"
-Execution status: ${isSuccess ? 'SUCCESS' : 'FAILED'}
-
-Please generate a conversational response to the user as Veritas AI confirming the action outcome.`;
-
-        const secondTurn = await geminiAgent.chat(systemUpdateMessage, sessionId, 'system');
-        text = secondTurn.text;
-        reasoning = secondTurn.reasoning || reasoning;
+      // Use the action result's built-in message instead of making a second Gemini call.
+      // This halves API quota usage and prevents 429 rate-limit crashes.
+      if (actionResult && actionResult.message) {
+        text = actionResult.error
+          ? `${text}\n\n❌ ${actionResult.message}`
+          : `${text}\n\n${actionResult.message}`;
       }
     }
 
@@ -194,6 +187,14 @@ Please generate a conversational response to the user as Veritas AI confirming t
     });
   } catch (err) {
     console.error('Chat error:', err.message);
+    const errMsg = err.message || '';
+    const is429 = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED');
+    if (is429) {
+      return res.status(429).json({ 
+        error: 'AI quota temporarily exceeded. Please wait a moment and try again.',
+        response: 'I apologize, sir. My AI processing quota has been temporarily exceeded. The system will recover shortly — please try again in a moment.'
+      });
+    }
     res.status(500).json({ error: 'I apologize, sir. I encountered an error processing your request.' });
   }
 });

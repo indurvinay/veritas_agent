@@ -3,6 +3,31 @@ import * as memoryStore from '../memory/memoryStore.js';
 import { extractVisibleText } from '../utils/htmlExtractor.js';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const MODEL_NAME = 'gemini-2.0-flash';
+
+/**
+ * Helper: call Gemini with automatic retry on 429 rate-limit errors.
+ */
+async function callGemini(prompt, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: prompt,
+      });
+      return response;
+    } catch (err) {
+      const is429 = err.message?.includes('429') || err.message?.includes('RESOURCE_EXHAUSTED');
+      if (is429 && attempt < retries) {
+        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s
+        console.warn(`Gemini rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
 
 /**
  * Main chat function — sends user message to Gemini with conversation context and profile facts.
@@ -95,10 +120,7 @@ ${contextMessages}
 ${currentTurnPrompt}`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: fullPrompt,
-    });
+    const response = await callGemini(fullPrompt);
 
     const text = response.text || '';
 
@@ -136,6 +158,12 @@ ${currentTurnPrompt}`;
     return { text: cleanText, action, reasoning };
   } catch (err) {
     console.error('Gemini chat error:', err.message);
+    const is429 = err.message?.includes('429') || err.message?.includes('RESOURCE_EXHAUSTED');
+    if (is429) {
+      const fallback = 'I apologize, sir. My AI processing quota has been temporarily exceeded. The system will recover shortly. Please try again in a moment.';
+      await memoryStore.addMessage(sessionId, 'assistant', fallback);
+      return { text: fallback, action: null, reasoning: null };
+    }
     throw new Error('Failed to get response from Veritas AI');
   }
 }
@@ -166,10 +194,7 @@ Return ONLY a valid JSON object, no markdown:
 }`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    const response = await callGemini(prompt);
 
     const text = response.text || '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -198,10 +223,7 @@ Body: ${cleanBody.substring(0, 1000)}
 Draft a contextually appropriate reply:`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    const response = await callGemini(prompt);
     return response.text || 'Thank you for your email. I will get back to you shortly.';
   } catch (err) {
     console.error('Gemini draft error:', err.message);
@@ -227,10 +249,7 @@ ${cleanBody.substring(0, 2000)}
 Return exactly 3 bullet points starting with "•":`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    const response = await callGemini(prompt);
     return response.text || 'Unable to summarize this email.';
   } catch (err) {
     console.error('Gemini summary error:', err.message);
@@ -256,10 +275,7 @@ Return JSON: {
 }`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    const response = await callGemini(prompt);
 
     const responseText = response.text || '';
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -287,10 +303,7 @@ ${roughDraft}
 Refined Draft (${tone} tone):`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    const response = await callGemini(prompt);
     return response.text || '';
   } catch (err) {
     console.error('Gemini polish draft error:', err.message);
@@ -316,10 +329,7 @@ USER QUESTION: ${query}
 Provide a concise, professional analysis. If the file is binary and content could not be extracted, explain what metadata is available and what steps the user should take. Use clear bullet points if needed. Do not include markdown formatting like HTML tags, just clean text.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    const response = await callGemini(prompt);
     return response.text || 'I apologize, sir. I was unable to generate an analysis of the document.';
   } catch (err) {
     console.error('Gemini document analysis error:', err.message);

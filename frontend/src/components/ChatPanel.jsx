@@ -408,10 +408,12 @@ export default function ChatPanel() {
         speakText(data.response);
       }
     } catch (err) {
+      // Extract the server's actual error message if available (e.g. rate limit, quota exceeded)
+      const serverResponse = err.response?.data?.response || err.response?.data?.error;
       const errorMsg = {
         id: uuidv4(),
         role: 'assistant',
-        content: 'I apologize, sir. I encountered an error processing your request. Systems may require authentication.',
+        content: serverResponse || 'I apologize, sir. I encountered an error processing your request. Please ensure you are authenticated.',
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMsg]);

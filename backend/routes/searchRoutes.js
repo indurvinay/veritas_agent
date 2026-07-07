@@ -225,7 +225,7 @@ router.post('/rag', async (req, res) => {
     if (topItems.length > 0) {
       try {
         const response = await ai.models.generateContent({
-          model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+          model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
           contents: `You are Veritas AI, an advanced personal assistant. You are performing an AI Knowledge Retrieval (RAG) search.
 Below are the retrieved workspace context matches for the query '${q}':
 ${contextText}
